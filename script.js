@@ -1,4 +1,4 @@
-﻿const BOARD_SIZE = 8;
+const BOARD_SIZE = 8;
 const POINTS_PER_GEM = 15;
 
 const GEM_TYPES = [
@@ -32,9 +32,21 @@ function startGame() {
   renderBoard();
   updateScore();
   updateMoves();
-  statusMessage.textContent = "인접한 보석을 교환해서 3개 이상 매치해 보세요!";
+  statusMessage.textContent = "게임을 시작합니다!";
   clearSelection();
-  setProcessing(false);
+  setProcessing(true); // 초기 매치 확인 동안 보드 잠금
+
+  // 렌더링 후 매치 확인을 위한 약간의 지연
+  setTimeout(() => {
+    const initialMatches = findMatches();
+    if (initialMatches.size > 0) {
+      statusMessage.textContent = "보너스! 시작부터 매치가 있네요!";
+      resolveMatches(initialMatches);
+    } else {
+      statusMessage.textContent = "인접한 보석을 교환해서 3개 이상 매치해 보세요!";
+      setProcessing(false);
+    }
+  }, 500);
 }
 
 function createInitialBoard() {
@@ -42,11 +54,7 @@ function createInitialBoard() {
 
   for (let row = 0; row < BOARD_SIZE; row++) {
     for (let col = 0; col < BOARD_SIZE; col++) {
-      let typeIndex;
-      do {
-        typeIndex = randomGem();
-      } while (createsMatch(newBoard, row, col, typeIndex));
-      newBoard[row][col] = typeIndex;
+      newBoard[row][col] = randomGem();
     }
   }
 
@@ -180,11 +188,7 @@ function collapseBoard() {
     const newColumn = new Array(BOARD_SIZE);
 
     for (let row = 0; row < empties; row++) {
-      let typeIndex;
-      do {
-        typeIndex = randomGem();
-      } while (wouldCauseMatch(row, col, typeIndex, newColumn));
-      newColumn[row] = typeIndex;
+      newColumn[row] = randomGem();
     }
 
     for (let i = 0; i < existing.length; i++) {
@@ -210,115 +214,54 @@ function collapseBoard() {
 }
 
 function findMatches() {
-  const baseMatches = new Set();
+  const matches = new Set();
 
+  // 가로 방향 매치 탐색
   for (let row = 0; row < BOARD_SIZE; row++) {
     let streak = 1;
     for (let col = 1; col < BOARD_SIZE; col++) {
-      const current = board[row][col];
-      const previous = board[row][col - 1];
-
-      if (current != null && current === previous) {
-        streak += 1;
+      if (board[row][col] !== null && board[row][col] === board[row][col - 1]) {
+        streak++;
       } else {
-        if (streak >= 3 && previous != null) {
-          for (let k = 0; k < streak; k++) {
-            baseMatches.add(`${row},${col - 1 - k}`);
+        if (streak >= 3) {
+          for (let i = 0; i < streak; i++) {
+            matches.add(`${row},${col - 1 - i}`);
           }
         }
         streak = 1;
       }
     }
-
-    if (streak >= 3 && board[row][BOARD_SIZE - 1] != null) {
-      for (let k = 0; k < streak; k++) {
-        baseMatches.add(`${row},${BOARD_SIZE - 1 - k}`);
+    if (streak >= 3) {
+      for (let i = 0; i < streak; i++) {
+        matches.add(`${row},${BOARD_SIZE - 1 - i}`);
       }
     }
   }
 
+  // 세로 방향 매치 탐색
   for (let col = 0; col < BOARD_SIZE; col++) {
     let streak = 1;
     for (let row = 1; row < BOARD_SIZE; row++) {
-      const current = board[row][col];
-      const previous = board[row - 1][col];
-
-      if (current != null && current === previous) {
-        streak += 1;
+      if (board[row][col] !== null && board[row][col] === board[row - 1][col]) {
+        streak++;
       } else {
-        if (streak >= 3 && previous != null) {
-          for (let k = 0; k < streak; k++) {
-            baseMatches.add(`${row - 1 - k},${col}`);
+        if (streak >= 3) {
+          for (let i = 0; i < streak; i++) {
+            matches.add(`${row - 1 - i},${col}`);
           }
         }
         streak = 1;
       }
     }
-
-    if (streak >= 3 && board[BOARD_SIZE - 1][col] != null) {
-      for (let k = 0; k < streak; k++) {
-        baseMatches.add(`${BOARD_SIZE - 1 - k},${col}`);
+    if (streak >= 3) {
+      for (let i = 0; i < streak; i++) {
+        matches.add(`${BOARD_SIZE - 1 - i},${col}`);
       }
     }
   }
-
-  if (baseMatches.size === 0) {
-    return baseMatches;
-  }
-
-  const matches = new Set(baseMatches);
-  const clusterVisited = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(false));
-
-  baseMatches.forEach((key) => {
-    const [startRow, startCol] = key.split(",").map(Number);
-    if (clusterVisited[startRow][startCol]) return;
-
-    const type = board[startRow][startCol];
-    if (type == null) return;
-
-    const stack = [[startRow, startCol]];
-    const cluster = [];
-    clusterVisited[startRow][startCol] = true;
-
-    while (stack.length > 0) {
-      const [row, col] = stack.pop();
-      cluster.push([row, col]);
-
-      const neighbors = [
-        [row - 1, col],
-        [row + 1, col],
-        [row, col - 1],
-        [row, col + 1]
-      ];
-
-      for (const [nextRow, nextCol] of neighbors) {
-        if (
-          nextRow >= 0 &&
-          nextRow < BOARD_SIZE &&
-          nextCol >= 0 &&
-          nextCol < BOARD_SIZE &&
-          !clusterVisited[nextRow][nextCol] &&
-          board[nextRow][nextCol] === type
-        ) {
-          clusterVisited[nextRow][nextCol] = true;
-          stack.push([nextRow, nextCol]);
-        }
-      }
-    }
-
-    if (cluster.length >= 4) {
-      cluster.forEach(([row, col]) => {
-        matches.add(`${row},${col}`);
-      });
-    }
-  });
 
   return matches;
 }
-
-
-
-
 
 function areAdjacent(first, second) {
   const distance = Math.abs(first.row - second.row) + Math.abs(first.col - second.col);
