@@ -22,6 +22,33 @@
 -   **애니메이션 효과**: 보석이 선택되거나 터질 때 부드러운 애니메이션 효과가 나타나 게임의 재미를 더합니다.
 -   **초기 매치 보너스**: 게임 시작 시 운이 좋게 매치가 완성된 상태라면, 보너스 점수를 얻고 시작할 수 있습니다.
 
+## 게임 구조
+
+```mermaid
+graph TD
+    subgraph "파일 구조"
+        A[index.html] --> B[styles.css]
+        A --> C[script.js]
+        C --> D["보석 이미지 파일 (img/*.png)"]
+    end
+
+    subgraph "게임 로직 (script.js)"
+        E[startGame] --> F{초기 보드 생성 및 렌더링}
+        F --> G{초기 매치 확인}
+        G -- 매치 있음 --> H[resolveMatches]
+        G -- 매치 없음 --> I[사용자 입력 대기]
+
+        I --> J[handleGemClick]
+        J --> K[attemptSwap]
+        K --> L{매치 확인 - findMatches}
+        L -- 매치 있음 --> H
+        L -- 매치 없음 --> M[원위치]
+
+        H --> N[보석 제거 & 점수 획득]
+        N --> O[collapseBoard]
+        O --> L
+    end
+```
+
 ## 실행 주소
 + https://pnumin.github.io/sillavibe_game/
-
