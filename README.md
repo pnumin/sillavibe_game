@@ -52,3 +52,7 @@ graph TD
 
 ## 실행 주소
 + https://pnumin.github.io/sillavibe_game/
+
+## 발표자료 주소
++ https://gamma.app/docs/-mqj8jwscpg9fvz1
+  
